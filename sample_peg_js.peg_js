@@ -1,0 +1,44 @@
+
+start
+	= json
+    
+json
+	= open_curly multiple_key_value_pair close_curly
+    
+open_curly
+ = "{"
+ 
+close_curly
+  = "}"
+ 
+multiple_key_value_pair
+	= single_key_value_pair ("," single_key_value_pair)*
+  
+single_key_value_pair
+ = key ":" value
+ 
+key
+	= string_value
+    
+value
+	= string_value / numberLiteral / booleanLiteral / nullLiternal / json
+    
+string_value
+	= stringLiteral
+    
+numberLiteral "number"
+	= digit+
+    
+booleanLiteral "boolean"
+	= "true" / "false"
+    
+nullLiternal "null"
+	 = "null"
+    
+digit
+	=[0-9]
+   
+stringLiteral "string"
+ = '"' str:$(!('"') .)* '"' {
+     return str
+ }

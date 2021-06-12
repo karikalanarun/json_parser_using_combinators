@@ -12,7 +12,20 @@ const parseChar = R.curry(
             : Left(`Expecting ${char}`)
 )
 
+const parseRegex = R.curry((regexString, errMessage, string) => {
+    let matches = string.match(new RegExp(`^${regexString}`));
+    return matches ? Right([matches[0], string.slice(
+        matches.index + matches[0].length
+    )]) : Left(errMessage)
+})
+
+const parseString = R.curry((sub, string) =>
+    string.startsWith(sub) ? Right([sub, string.slice(sub.length)]) : Left(`Expecting ${sub}`)
+)
+
 
 module.exports = {
-    parseChar
+    parseChar,
+    parseRegex,
+    parseString
 }
