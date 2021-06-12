@@ -10,6 +10,10 @@ const parseLCurly = parseChar("{");
 
 const parseRCurly = parseChar("}")
 
+const parseOpenSqr = parseChar("[")
+
+const parseCloseSqr = parseChar("]")
+
 const parseComma = parseChar(",")
 
 const parseColon = parseChar(":")
@@ -21,7 +25,7 @@ const parseDigits = R.compose(
 
 const parseBoolean = R.compose(
     map(literal => literal === "true" ? true : false),
-    parseRegex("(true)|(false)", "Expecting boolean true/false")
+    parseRegex("((true)|(false))", "Expecting boolean true/false")
 )
 
 const parseNull = R.compose(
@@ -29,30 +33,75 @@ const parseNull = R.compose(
     parseString("null")
 )
 
+
 const parseStringLiteral = parseRegex("\"((?:\\.|.)*?)\"", "Expecting string literal")
 
-const parseValue = either(parseStringLiteral, either(parseNull, either(parseBoolean, parseDigits)))
+const parseValue = either(
+    string => parseArray(string),
+    either(
+        parseStringLiteral,
+        either(
+            parseNull,
+            either(
+                parseBoolean,
+                either(
+                    parseDigits,
+                    (string) => parseObject(string)
+                )
+            )
+        )
+    )
+)
+
+const parseArrayTailElement = R.compose(
+    map(([, value]) => value),
+    both(parseComma, parseValue)
+)
 
 const parseKeyValuePair = R.compose(
     map(([key, [, value]]) => ({ key, value })),
     both(parseStringLiteral, both(parseColon, parseValue))
 )
 
-const parseEmpty = parseString("");
+const parseEmpty = def => R.compose(
+    map(() => def),
+    parseString("")
+);
+
+const parseManyTailElement = R.compose(
+    map(([startEl, otherEls]) => [startEl, ...otherEls]),
+    both(
+        parseArrayTailElement,
+        either(string => parseManyTailElement(string), parseEmpty([]))
+    )
+)
+
+const parseZeroOrManyTrailEl = either(parseManyTailElement, parseEmpty([]))
+
+const parseArrayEls = R.compose(
+    map(([start, els]) => [start, ...els]),
+    both(parseValue, parseZeroOrManyTrailEl)
+)
+
+const parseArray = R.compose(
+    map(([, [els]]) => els),
+    both(
+        parseOpenSqr,
+        R.compose(
+            both(parseArrayEls, parseCloseSqr)
+        )
+    )
+)
 
 const parseTailKeyValuePair = R.compose(
     map(([, keyValuePairs]) => [...keyValuePairs.filter(pair => pair !== "")]),
     both(parseComma, (string) => manyParseKeyValuePair(string))
 )
 
-const optionalTailKeyValuePair = R.compose(
-    map((pair) => pair !== "" ? [...pair] : []),
-    either(parseTailKeyValuePair, parseEmpty)
-)
+const optionalTailKeyValuePair = either(parseTailKeyValuePair, parseEmpty([]))
 
 const manyParseKeyValuePair = R.compose(
     map(([startPair, otherPairs]) => {
-        console.log({ startPair, otherPairs })
         return [startPair, ...otherPairs]
     }),
     both(
@@ -61,35 +110,34 @@ const manyParseKeyValuePair = R.compose(
     )
 )
 
-const oneOrManyParseKeyValuePair = R.compose(
+const zeroOrManyParseKeyValuePair = R.compose(
     map(R.reduce((obj, { key, value }) => ({ ...obj, [key]: value }), {})),
     either(
         manyParseKeyValuePair,
-        R.compose(
-            map(() => ({})),
-            parseEmpty
-        )
+        parseEmpty([])
     ))
 
-const parseJson = R.compose(
+const parseObject = R.compose(
     map(([, [obj]]) => obj),
-    both(parseLCurly, both(oneOrManyParseKeyValuePair, parseRCurly))
+    both(parseLCurly, both(zeroOrManyParseKeyValuePair, parseRCurly))
 )
 
-let result = parseJson('{"arun":5,"karikalan":true,"summa":null}')
+const parseJson = either(parseObject, parseArray)
 
-// let result = parseKeyValuePair("\"null\":5")
+// let result = parseJson('{"arun":{"karikalan":{"awe":true}},"jo":"test"}')
+
+let result = parseJson('{"arun":[1,2,{"awe":false}]}')
 
 result.either(
     (err) => {
         console.log("err :: ", err)
     },
     (value) => {
-        console.log({ value: value[0] })
-        console.log("value ::: ", JSON.stringify(value[0], 1))
+        console.log({ value: value[0], remainder: value[1] })
+        console.log(JSON.stringify(value[0], null, 1))
     }
 )
 
 module.exports = {
-    parseJson
+    parseJson: parseObject
 }
