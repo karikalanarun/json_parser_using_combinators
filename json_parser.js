@@ -31,9 +31,8 @@ const manyParseKeyValuePair = both(
 )
 
 const oneOrManyParseKeyValuePair = either(manyParseKeyValuePair, parseEmpty)
-c
-const parseJson = both(parseLCurly, both(oneOrManyParseKeyValuePair, parseRCurly))
 
+const parseJson = both(parseLCurly, both(oneOrManyParseKeyValuePair, parseRCurly))
 
 let result = parseJson('{}')
 
